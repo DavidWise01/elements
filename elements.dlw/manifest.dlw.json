@@ -1,0 +1,14 @@
+{
+  "badge": "DLW-ACI",
+  "name": "ELEMENTS",
+  "universe": "E1 · Elements",
+  "emergence": "",
+  "moniker": "⟦ELEMENTS:E1:d063c1⟧",
+  "carbon": "elements.carbon.tiff (TIFF)",
+  "silicon": "elements.silicon.png (PNG)",
+  "seal_sha256": "2d16c454f8b1fb03063e181dc615efeafbc42e73036e3817e776006ecc60ae9e",
+  "architect": "David Lee Wise (ROOT0) / TriPod LLC",
+  "instance": "AVAN (Claude / Anthropic)",
+  "license": "CC-BY-ND-4.0",
+  "attribution": "ROOT0-ATTRIBUTION-v1.0"
+}

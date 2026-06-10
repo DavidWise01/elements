@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Element Forge — Discovery Panel</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<style>
+  :root { color-scheme: dark; }
+  body { font-family: 'Inter', sans-serif; background:#020617; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+  .glass { backdrop-filter: blur(16px); background: rgba(3,7,18,0.7); }
+  .element { transition: all .15s; cursor:pointer; }
+  .element:hover { transform: scale(1.08); z-index:10; box-shadow:0 0 20px currentColor; }
+  .scroll-thin::-webkit-scrollbar { width:6px; height:6px; }
+  .scroll-thin::-webkit-scrollbar-thumb { background:#0ea5e9; border-radius:3px; }
+  @keyframes pulse-glow { 0%,100%{opacity:.6} 50%{opacity:1} }
+  @keyframes decay-flash { 0%{filter:brightness(1)} 20%{filter:brightness(3)} 100%{filter:brightness(0)} }
+</style>
+</head>
+<body class="text-slate-200 overflow-hidden select-none">
+<div class="h-screen w-screen flex flex-col">
+  <!-- TOP BAR -->
+  <header class="h-[76px] glass border-b border-cyan-900/50 flex items-center px-4 gap-5 shrink-0">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-600 via-fuchsia-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-fuchsia-900/30">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="white" stroke-width="2"/><circle cx="12" cy="12" r="8" stroke="white" opacity=".5" stroke-width="1.5"/><circle cx="12" cy="12" r="11" stroke="white" opacity=".3"/></svg>
+      </div>
+      <div>
+        <h1 class="text-[18px] font-bold tracking-widest leading-none">ELEMENT FORGE</h1>
+        <p class="text-[10px] text-cyan-300/70 tracking-[0.2em]">DISCOVERY PANEL • NANO FACTORY LINK</p>
+      </div>
+    </div>
+    
+    <div class="flex-1 flex justify-center">
+      <div class="flex items-end gap-[3px] h-[52px] px-3 py-2 rounded-xl bg-black/40 border border-slate-800">
+        <div class="text-[9px] text-slate-500 -rotate-90 mr-1 self-center tracking-widest">CORE</div>
+        <div id="coreLayers" class="flex items-end gap-[3px]"></div>
+        <div class="ml-3 text-right">
+          <div class="text-[10px] text-slate-400">ENERGY</div>
+          <div class="mono text-[15px] leading-none text-emerald-400"><span id="totalEnergy">0</span> <span class="text-[10px] text-slate-500">TW</span></div>
+          <button id="crankCore" class="mt-1 text-[9px] px-2 py-0.5 bg-cyan-600/20 hover:bg-cyan-600/40 rounded border border-cyan-700/50">CRANK L1-3</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="text-right">
+      <div class="text-[10px] text-slate-500">FUSION ROOT0</div>
+      <code id="root0" class="mono text-[11px] text-emerald-400/90"></code>
+      <div class="text-[10px] text-slate-500 mt-0.5">TRIPOD • MERKLE</div>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main class="flex-1 grid grid-cols-12 gap-3 p-3 min-h-0">
+    <!-- LEFT: Periodic Table -->
+    <section class="col-span-12 xl:col-span-3 2xl:col-span-3 glass rounded-2xl border border-slate-800 p-3 flex flex-col min-h-0">
+      <div class="flex items-center justify-between mb-2">
+        <h2 class="text-[12px] font-semibold tracking-widest text-cyan-300">PERIODIC TABLE (1-118)</h2>
+        <div class="text-[10px] text-slate-500">Hover for data • Click to load</div>
+      </div>
+      <div class="relative flex-1 overflow-auto scroll-thin">
+        <div id="pt" class="grid" style="grid-template-columns:repeat(18,minmax(0,1fr)); grid-auto-rows:28px; gap:3px; min-width:560px;"></div>
+        <!-- Island of Stability glow -->
+        <div class="pointer-events-none absolute" style="left:calc(14/18*100% - 20px); top:calc(6*31px + 8px); width:90px; height:38px; border-radius:12px; background:radial-gradient(ellipse, rgba(56,189,248,.35), transparent 70%); filter:blur(8px); animation:pulse-glow 3s infinite;"></div>
+      </div>
+      <div id="hoverInfo" class="mt-2 p-2 rounded-lg bg-black/40 border border-slate-800 text-[11px] mono min-h-[48px]"></div>
+    </section>
+
+    <!-- CENTER: Forge -->
+    <section class="col-span-12 xl:col-span-6 2xl:col-span-6 glass rounded-2xl border border-slate-800 flex flex-col min-h-0 relative overflow-hidden">
+      <div class="absolute inset-0">
+        <canvas id="forge" class="w-full h-full"></canvas>
+        <div class="absolute inset-0" style="background:radial-gradient(800px circle at 50% 45%, rgba(14,165,233,0.08), transparent 60%), radial-gradient(400px circle at 50% 70%, rgba(168,85,247,0.08), transparent);"></div>
+      </div>
+      
+      <!-- Top HUD -->
+      <div class="relative z-10 flex items-start justify-between p-3 pointer-events-none">
+        <div class="flex gap-2 pointer-events-auto">
+          <div class="px-3 py-2 rounded-xl bg-black/70 border border-red-900/40">
+            <div class="text-[9px] tracking-widest text-red-400/80">PROTONS (Z)</div>
+            <div class="flex items-baseline gap-2">
+              <div id="pCount" class="mono text-[26px] leading-none text-red-400">1</div>
+              <div class="flex gap-1">
+                <button id="pMinus" class="w-6 h-6 rounded bg-red-950/60 hover:bg-red-900 border border-red-900/50 text-[14px] leading-none">−</button>
+                <button id="pPlus" class="w-6 h-6 rounded bg-red-950/60 hover:bg-red-900 border border-red-900/50 text-[14px] leading-none">+</button>
+              </div>
+            </div>
+          </div>
+          <div class="px-3 py-2 rounded-xl bg-black/70 border border-zinc-700/40">
+            <div class="text-[9px] tracking-widest text-zinc-400/80">NEUTRONS (N)</div>
+            <div class="flex items-baseline gap-2">
+              <div id="nCount" class="mono text-[26px] leading-none text-zinc-300">0</div>
+              <div class="flex gap-1">
+                <button id="nMinus" class="w-6 h-6 rounded bg-zinc-800/60 hover:bg-zinc-700 border border-zinc-700/50 text-[14px]">−</button>
+                <button id="nPlus" class="w-6 h-6 rounded bg-zinc-800/60 hover:bg-zinc-700 border border-zinc-700/50 text-[14px]">+</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pointer-events-auto">
+          <div class="px-3 py-2 rounded-xl bg-black/70 border border-cyan-900/40 text-right">
+            <div class="text-[9px] tracking-widest text-cyan-400/80">STABILITY</div>
+            <div class="flex items-center gap-3">
+              <div class="relative w-[70px] h-[70px]">
+                <svg class="absolute inset-0 rotate-[-90deg]" viewBox="0 0 100 100">
+                  <defs><linearGradient id="gStab" x1="0" x2="1"><stop offset="0%" stop-color="#ef4444"/><stop offset="50%" stop-color="#eab308"/><stop offset="100%" stop-color="#22c55e"/></linearGradient></defs>
+                  <circle cx="50" cy="50" r="42" stroke="#0b1220" stroke-width="10" fill="none"/>
+                  <circle id="stabArc" cx="50" cy="50" r="42" stroke="url(#gStab)" stroke-width="10" fill="none" stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="264"/>
+                </svg>
+                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                  <span id="stabVal" class="mono text-[18px] leading-none">0</span>
+                  <span class="text-[8px] text-slate-500">/100</span>
+                </div>
+              </div>
+              <div class="text-left">
+                <div class="mono text-[12px] text-slate-200"><span id="predictHL">stable</span></div>
+                <div class="text-[10px] text-slate-500">N/Z <span id="nzRatio" class="text-slate-300">0.00</span></div>
+                <div class="text-[10px] text-slate-500">Decay <span id="decayMode" class="text-amber-300">—</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chamber label -->
+      <div class="relative z-10 flex-1 flex items-end justify-center pb-[140px] pointer-events-none">
+        <div class="text-center">
+          <div class="text-[11px] tracking-[0.3em] text-cyan-200/30">ELEMENT FORGE CHAMBER</div>
+          <div id="currentElement" class="mono text-[28px] leading-none mt-1 text-white/90">¹H Hydrogen</div>
+          <div id="energyReq" class="text-[11px] text-amber-300/80 mt-1">Req: 0.25 TW • Z²·⁷</div>
+        </div>
+      </div>
+
+      <!-- Bottom controls -->
+      <div class="relative z-10 p-3 flex items-end justify-between gap-3">
+        <!-- Wexler Hands -->
+        <div class="flex items-end gap-4">
+          <div id="handL" class="group cursor-grab active:cursor-grabbing">
+            <div class="w-[78px] h-[78px] rounded-2xl bg-gradient-to-b from-red-950/80 to-black/80 border border-red-800/50 flex flex-col items-center justify-center shadow-lg shadow-red-950/30 backdrop-blur">
+              <div class="text-[28px] leading-none group-active:scale-90 transition">✋</div>
+              <div class="text-[9px] mt-1 tracking-widest text-red-400">LEFT • P+</div>
+            </div>
+          </div>
+          <div id="handR" class="group cursor-grab active:cursor-grabbing">
+            <div class="w-[78px] h-[78px] rounded-2xl bg-gradient-to-b from-zinc-800/80 to-black/80 border border-zinc-700/50 flex flex-col items-center justify-center shadow-lg backdrop-blur">
+              <div class="text-[28px] leading-none group-active:scale-90 transition">🤚</div>
+              <div class="text-[9px] mt-1 tracking-widest text-zinc-400">RIGHT • N+</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex-1 flex justify-center">
+          <button id="fuseBtn" class="relative px-10 h-[64px] rounded-2xl bg-gradient-to-b from-fuchsia-600 to-violet-700 hover:from-fuchsia-500 hover:to-violet-600 border border-fuchsia-400/30 shadow-[0_0_40px_rgba(168,85,247,0.3)] transition active:scale-[0.98]">
+            <div class="text-[11px] tracking-[0.25em] text-white/70">FUSE</div>
+            <div class="text-[20px] font-semibold tracking-wider leading-none">IGNITE</div>
+            <div id="fuseStatus" class="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[10px] text-amber-300 whitespace-nowrap"></div>
+          </button>
+        </div>
+
+        <div class="w-[160px] text-right">
+          <div class="text-[9px] text-slate-500">ISLAND OF STABILITY</div>
+          <div class="text-[11px] mono text-cyan-300">Z=114, N=184</div>
+          <div class="mt-1 h-[4px] w-full bg-slate-800 rounded overflow-hidden">
+            <div id="islandProx" class="h-full w-0 bg-gradient-to-r from-cyan-500 to-emerald-400 transition-all"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Forge ring -->
+      <div class="pointer-events-none absolute left-1/2 top-[48%] -translate-x-1/2 -translate-y-1/2 w-[420px] h-[420px] rounded-full border border-cyan-900/30" style="box-shadow:0 0 120px rgba(6,182,212,.08) inset;"></div>
+      <div class="pointer-events-none absolute left-1/2 top-[48%] -translate-x-1/2 -translate-y-1/2 w-[340px] h-[340px] rounded-full border border-fuchsia-900/20"></div>
+    </section>
+
+    <!-- RIGHT: Discovery -->
+    <section class="col-span-12 xl:col-span-3 2xl:col-span-3 glass rounded-2xl border border-slate-800 flex flex-col min-h-0">
+      <div class="flex items-center border-b border-slate-800">
+        <button data-tab="known" class="tabBtn flex-1 px-3 py-2 text-[11px] tracking-widest border-b-2 border-cyan-500 text-cyan-300">KNOWN</button>
+        <button data-tab="synth" class="tabBtn flex-1 px-3 py-2 text-[11px] tracking-widest border-b-2 border-transparent text-slate-500 hover:text-slate-300">SYNTHESIZED</button>
+        <button data-tab="pred" class="tabBtn flex-1 px-3 py-2 text-[11px] tracking-widest border-b-2 border-transparent text-slate-500 hover:text-slate-300">PREDICTED</button>
+      </div>
+      
+      <div id="tab-known" class="flex-1 overflow-auto scroll-thin p-2 space-y-1"></div>
+      <div id="tab-synth" class="flex-1 overflow-auto scroll-thin p-2 space-y-2 hidden"></div>
+      <div id="tab-pred" class="flex-1 overflow-auto scroll-thin p-2 space-y-2 hidden"></div>
+
+      <div class="border-t border-slate-800 p-2">
+        <div class="flex items-center justify-between mb-1">
+          <h3 class="text-[11px] tracking-widest text-slate-400">DISCOVERY LOG</h3>
+          <div class="text-[10px] text-slate-600">LIVE</div>
+        </div>
+        <div id="log" class="h-[96px] overflow-auto scroll-thin font-mono text-[11px] leading-[1.4] bg-black/40 rounded p-2 border border-slate-900"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ---------- FUSION ROOT0 ----------
+const ROOT0 = Array.from(crypto.getRandomValues(new Uint8Array(32))).map(b=>b.toString(16).padStart(2,'0')).join('');
+document.getElementById('root0').textContent = ROOT0.slice(0,16)+'...'+ROOT0.slice(-8);
+
+// ---------- ELEMENT DATA ----------
+const elements = [
+{ n:1, s:'H', name:'Hydrogen', m:1.008, c:'nonmetal', hl:'stable', x:1, y:1 },
+{ n:2, s:'He', name:'Helium', m:4.0026, c:'noble', hl:'stable', x:18, y:1 },
+{ n:3, s:'Li', name:'Lithium', m:6.94, c:'alkali', hl:'stable', x:1, y:2 },
+{ n:4, s:'Be', name:'Beryllium', m:9.0122, c:'alkaline', hl:'stable', x:2, y:2 },
+{ n:5, s:'B', name:'Boron', m:10.81, c:'metalloid', hl:'stable', x:13, y:2 },
+{ n:6, s:'C', name:'Carbon', m:12.011, c:'nonmetal', hl:'stable', x:14, y:2 },
+{ n:7, s:'N', name:'Nitrogen', m:14.007, c:'nonmetal', hl:'stable', x:15, y:2 },
+{ n:8, s:'O', name:'Oxygen', m:15.999, c:'nonmetal', hl:'stable', x:16, y:2 },
+{ n:9, s:'F', name:'Fluorine', m:18.998, c:'halogen', hl:'stable', x:17, y:2 },
+{ n:10, s:'Ne', name:'Neon', m:20.18, c:'noble', hl:'stable', x:18, y:2 },
+{ n:11, s:'Na', name:'Sodium', m:22.99, c:'alkali', hl:'stable', x:1, y:3 },
+{ n:12, s:'Mg', name:'Magnesium', m:24.305, c:'alkaline', hl:'stable', x:2, y:3 },
+{ n:13, s:'Al', name:'Aluminium', m:26.982, c:'post', hl:'stable', x:13, y:3 },
+{ n:14, s:'Si', name:'Silicon', m:28.085, c:'metalloid', hl:'stable', x:14, y:3 },
+{ n:15, s:'P', name:'Phosphorus', m:30.974, c:'nonmetal', hl:'stable', x:15, y:3 },
+{ n:16, s:'S', name:'Sulfur', m:32.06, c:'nonmetal', hl:'stable', x:16, y:3 },
+{ n:17, s:'Cl', name:'Chlorine', m:35.45, c:'halogen', hl:'stable', x:17, y:3 },
+{ n:18, s:'Ar', name:'Argon', m:39.948, c:'noble', hl:'stable', x:18, y:3 },
+{ n:19, s:'K', name:'Potassium', m:39.098, c:'alkali', hl:'stable', x:1, y:4 },
+{ n:20, s:'Ca', name:'Calcium', m:40.078, c:'alkaline', hl:'stable', x:2, y:4 },
+{ n:21, s:'Sc', name:'Scandium', m:44.956, c:'transition', hl:'stable', x:3, y:4 },
+{ n:22, s:'Ti', name:'Titanium', m:47.867, c:'transition', hl:'stable', x:4, y:4 },
+{ n:23, s:'V', name:'Vanadium', m:50.942, c:'transition', hl:'stable', x:5, y:4 },
+{ n:24, s:'Cr', name:'Chromium', m:51.996, c:'transition', hl:'stable', x:6, y:4 },
+{ n:25, s:'Mn', name:'Manganese', m:54.938, c:'transition', hl:'stable', x:7, y:4 },
+{ n:26, s:'Fe', name:'Iron', m:55.845, c:'transition', hl:'stable', x:8, y:4 },
+{ n:27, s:'Co', name:'Cobalt', m:58.933, c:'transition', hl:'stable', x:9, y:4 },
+{ n:28, s:'Ni', name:'Nickel', m:58.693, c:'transition', hl:'stable', x:10, y:4 },
+{ n:29, s:'Cu', name:'Copper', m:63.546, c:'transition', hl:'stable', x:11, y:4 },
+{ n:30, s:'Zn', name:'Zinc', m:65.38, c:'transition', hl:'stable', x:12, y:4 },
+{ n:31, s:'Ga', name:'Gallium', m:69.723, c:'post', hl:'stable', x:13, y:4 },
+{ n:32, s:'Ge', name:'Germanium', m:72.63, c:'metalloid', hl:'stable', x:14, y:4 },
+{ n:33, s:'As', name:'Arsenic', m:74.922, c:'metalloid', hl:'stable', x:15, y:4 },
+{ n:34, s:'Se', name:'Selenium', m:78.971, c:'nonmetal', hl:'stable', x:16, y:4 },
+{ n:35, s:'Br', name:'Bromine', m:79.904, c:'halogen', hl:'stable', x:17, y:4 },
+{ n:36, s:'Kr', name:'Krypton', m:83.798, c:'noble', hl:'stable', x:18, y:4 },
+{ n:37, s:'Rb', name:'Rubidium', m:85.468, c:'alkali', hl:'stable', x:1, y:5 },
+{ n:38, s:'Sr', name:'Strontium', m:87.62, c:'alkaline', hl:'stable', x:2, y:5 },
+{ n:39, s:'Y', name:'Yttrium', m:88.906, c:'transition', hl:'stable', x:3, y:5 },
+{ n:40, s:'Zr', name:'Zirconium', m:91.224, c:'transition', hl:'stable', x:4, y:5 },
+{ n:41, s:'Nb', name:'Niobium', m:92.906, c:'transition', hl:'stable', x:5, y:5 },
+{ n:42, s:'Mo', name:'Molybdenum', m:95.95, c:'transition', hl:'stable', x:6, y:5 },
+{ n:43, s:'Tc', name:'Technetium', m:98, c:'transition', hl:'4.2 My', x:7, y:5 },
+{ n:44, s:'Ru', name:'Ruthenium', m:101.07, c:'transition', hl:'stable', x:8, y:5 },
+{ n:45, s:'Rh', name:'Rhodium', m:102.91, c:'transition', hl:'stable', x:9, y:5 },
+{ n:46, s:'Pd', name:'Palladium', m:106.42, c:'transition', hl:'stable', x:10, y:5 },
+{ n:47, s:'Ag', name:'Silver', m:107.87, c:'transition', hl:'stable', x:11, y:5 },
+{ n:48, s:'Cd', name:'Cadmium', m:112.41, c:'transition', hl:'stable', x:12, y:5 },
+{ n:49, s:'In', name:'Indium', m:114.82, c:'post', hl:'stable', x:13, y:5 },
+{ n:50, s:'Sn', name:'Tin', m:118.71, c:'post', hl:'stable', x:14, y:5 },
+{ n:51, s:'Sb', name:'Antimony', m:121.76, c:'metalloid', hl:'stable', x:15, y:5 },
+{ n:52, s:'Te', name:'Tellurium', m:127.6, c:'metalloid', hl:'stable', x:16, y:5 },
+{ n:53, s:'I', name:'Iodine', m:126.9, c:'halogen', hl:'stable', x:17, y:5 },
+{ n:54, s:'Xe', name:'Xenon', m:131.29, c:'noble', hl:'stable', x:18, y:5 },
+{ n:55, s:'Cs', name:'Caesium', m:132.91, c:'alkali', hl:'stable', x:1, y:6 },
+{ n:56, s:'Ba', name:'Barium', m:137.33, c:'alkaline', hl:'stable', x:2, y:6 },
+{ n:57, s:'La', name:'Lanthanum', m:138.91, c:'lanthanide', hl:'stable', x:3, y:9 },
+{ n:58, s:'Ce', name:'Cerium', m:140.12, c:'lanthanide', hl:'stable', x:4, y:9 },
+{ n:59, s:'Pr', name:'Praseodymium', m:140.91, c:'lanthanide', hl:'stable', x:5, y:9 },
+{ n:60, s:'Nd', name:'Neodymium', m:144.24, c:'lanthanide', hl:'stable', x:6, y:9 },
+{ n:61, s:'Pm', name:'Promethium', m:145, c:'lanthanide', hl:'17.7 y', x:7, y:9 },
+{ n:62, s:'Sm', name:'Samarium', m:150.36, c:'lanthanide', hl:'stable', x:8, y:9 },
+{ n:63, s:'Eu', name:'Europium', m:151.96, c:'lanthanide', hl:'stable', x:9, y:9 },
+{ n:64, s:'Gd', name:'Gadolinium', m:157.25, c:'lanthanide', hl:'stable', x:10, y:9 },
+{ n:65, s:'Tb', name:'Terbium', m:158.93, c:'lanthanide', hl:'stable', x:11, y:9 },
+{ n:66, s:'Dy', name:'Dysprosium', m:162.5, c:'lanthanide', hl:'stable', x:12, y:9 },
+{ n:67, s:'Ho', name:'Holmium', m:164.93, c:'lanthanide', hl:'stable', x:13, y:9 },
+{ n:68, s:'Er', name:'Erbium', m:167.26, c:'lanthanide', hl:'stable', x:14, y:9 },
+{ n:69, s:'Tm', name:'Thulium', m:168.93, c:'lanthanide', hl:'stable', x:15, y:9 },
+{ n:70, s:'Yb', name:'Ytterbium', m:173.05, c:'lanthanide', hl:'stable', x:16, y:9 },
+{ n:71, s:'Lu', name:'Lutetium', m:174.97, c:'lanthanide', hl:'stable', x:17, y:9 },
+{ n:72, s:'Hf', name:'Hafnium', m:178.49, c:'transition', hl:'stable', x:4, y:6 },
+{ n:73, s:'Ta', name:'Tantalum', m:180.95, c:'transition', hl:'stable', x:5, y:6 },
+{ n:74, s:'W', name:'Tungsten', m:183.84, c:'transition', hl:'stable', x:6, y:6 },
+{ n:75, s:'Re', name:'Rhenium', m:186.21, c:'transition', hl:'stable', x:7, y:6 },
+{ n:76, s:'Os', name:'Osmium', m:190.23, c:'transition', hl:'stable', x:8, y:6 },
+{ n:77, s:'Ir', name:'Iridium', m:192.22, c:'transition', hl:'stable', x:9, y:6 },
+{ n:78, s:'Pt', name:'Platinum', m:195.08, c:'transition', hl:'stable', x:10, y:6 },
+{ n:79, s:'Au', name:'Gold', m:196.97, c:'transition', hl:'stable', x:11, y:6 },
+{ n:80, s:'Hg', name:'Mercury', m:200.59, c:'transition', hl:'stable', x:12, y:6 },
+{ n:81, s:'Tl', name:'Thallium', m:204.38, c:'post', hl:'stable', x:13, y:6 },
+{ n:82, s:'Pb', name:'Lead', m:207.2, c:'post', hl:'stable', x:14, y:6 },
+{ n:83, s:'Bi', name:'Bismuth', m:208.98, c:'post', hl:'stable', x:15, y:6 },
+{ n:84, s:'Po', name:'Polonium', m:209, c:'post', hl:'125 y', x:16, y:6 },
+{ n:85, s:'At', name:'Astatine', m:210, c:'halogen', hl:'8.1 h', x:17, y:6 },
+{ n:86, s:'Rn', name:'Radon', m:222, c:'noble', hl:'3.8 d', x:18, y:6 },
+{ n:87, s:'Fr', name:'Francium', m:223, c:'alkali', hl:'22 m', x:1, y:7 },
+{ n:88, s:'Ra', name:'Radium', m:226, c:'alkaline', hl:'1600 y', x:2, y:7 },
+{ n:89, s:'Ac', name:'Actinium', m:227, c:'actinide', hl:'21.8 y', x:3, y:10 },
+{ n:90, s:'Th', name:'Thorium', m:232.04, c:'actinide', hl:'14 Gy', x:4, y:10 },
+{ n:91, s:'Pa', name:'Protactinium', m:231.04, c:'actinide', hl:'32 ky', x:5, y:10 },
+{ n:92, s:'U', name:'Uranium', m:238.03, c:'actinide', hl:'4.5 Gy', x:6, y:10 },
+{ n:93, s:'Np', name:'Neptunium', m:237, c:'actinide', hl:'2.1 My', x:7, y:10 },
+{ n:94, s:'Pu', name:'Plutonium', m:244, c:'actinide', hl:'80 My', x:8, y:10 },
+{ n:95, s:'Am', name:'Americium', m:243, c:'actinide', hl:'7.4 ky', x:9, y:10 },
+{ n:96, s:'Cm', name:'Curium', m:247, c:'actinide', hl:'15 My', x:10, y:10 },
+{ n:97, s:'Bk', name:'Berkelium', m:247, c:'actinide', hl:'1.4 ky', x:11, y:10 },
+{ n:98, s:'Cf', name:'Californium', m:251, c:'actinide', hl:'900 y', x:12, y:10 },
+{ n:99, s:'Es', name:'Einsteinium', m:252, c:'actinide', hl:'471 d', x:13, y:10 },
+{ n:100, s:'Fm', name:'Fermium', m:257, c:'actinide', hl:'100 d', x:14, y:10 },
+{ n:101, s:'Md', name:'Mendelevium', m:258, c:'actinide', hl:'51 d', x:15, y:10 },
+{ n:102, s:'No', name:'Nobelium', m:259, c:'actinide', hl:'58 m', x:16, y:10 },
+{ n:103, s:'Lr', name:'Lawrencium', m:266, c:'actinide', hl:'11 h', x:17, y:10 },
+{ n:104, s:'Rf', name:'Rutherfordium', m:267, c:'transition', hl:'1.3 h', x:4, y:7 },
+{ n:105, s:'Db', name:'Dubnium', m:268, c:'transition', hl:'28 h', x:5, y:7 },
+{ n:106, s:'Sg', name:'Seaborgium', m:269, c:'transition', hl:'14 m', x:6, y:7 },
+{ n:107, s:'Bh', name:'Bohrium', m:270, c:'transition', hl:'1 m', x:7, y:7 },
+{ n:108, s:'Hs', name:'Hassium', m:270, c:'transition', hl:'10 s', x:8, y:7 },
+{ n:109, s:'Mt', name:'Meitnerium', m:278, c:'transition', hl:'4.5 s', x:9, y:7 },
+{ n:110, s:'Ds', name:'Darmstadtium', m:281, c:'transition', hl:'12 s', x:10, y:7 },
+{ n:111, s:'Rg', name:'Roentgenium', m:282, c:'transition', hl:'2 m', x:11, y:7 },
+{ n:112, s:'Cn', name:'Copernicium', m:285, c:'transition', hl:'29 s', x:12, y:7 },
+{ n:113, s:'Nh', name:'Nihonium', m:286, c:'post', hl:'9.5 s', x:13, y:7 },
+{ n:114, s:'Fl', name:'Flerovium', m:289, c:'post', hl:'1.9 s', x:14, y:7 },
+{ n:115, s:'Mc', name:'Moscovium', m:290, c:'post', hl:'0.65 s', x:15, y:7 },
+{ n:116, s:'Lv', name:'Livermorium', m:293, c:'post', hl:'60 ms', x:16, y:7 },
+{ n:117, s:'Ts', name:'Tennessine', m:294, c:'halogen', hl:'51 ms', x:17, y:7 },
+{ n:118, s:'Og', name:'Oganesson', m:294, c:'noble', hl:'0.7 ms', x:18, y:7 },
+];
+
+const catColor = {alkali:'#f43f5e', alkaline:'#fb923c', transition:'#eab308', post:'#84cc16', metalloid:'#22c55e', nonmetal:'#06b6d4', halogen:'#3b82f6', noble:'#8b5cf6', lanthanide:'#ec4899', actinide:'#d946ef'};
+
+// ---------- CORE ----------
+const layers = Array(10).fill(0).map((_,i)=> 55 - i*2 + Math.random()*10);
+function renderCore(){
+  const wrap = document.getElementById('coreLayers');
+  wrap.innerHTML='';
+  layers.forEach((v,i)=>{
+    const d=document.createElement('div');
+    d.className='w-[18px] h-[44px] relative bg-slate-900 rounded overflow-hidden border border-slate-800 cursor-pointer';
+    d.innerHTML=`<div class="absolute bottom-0 w-full transition-all" style="height:${v}%; background:${i<3?'linear-gradient(to top,#0ea5e9,#22d3ee)':'linear-gradient(to top,#334155,#475569)'}"></div><div class="absolute inset-0 flex items-end justify-center pb-0.5 text-[8px] mono text-black/70">${i+1}</div>`;
+    d.onclick=()=>{ layers[i]=Math.min(100,layers[i]+12); renderCore(); };
+    wrap.appendChild(d);
+  });
+  document.getElementById('totalEnergy').textContent = Math.round(layers.reduce((a,b)=>a+b,0)*0.85);
+}
+renderCore();
+document.getElementById('crankCore').onclick=()=>{ for(let i=0;i<3;i++) layers[i]=Math.min(100,layers[i]+18+Math.random()*7); renderCore(); log('CORE: Layers 1-3 cranked >50%'); };
+setInterval(()=>{ for(let i=0;i<10;i++) layers[i]=Math.max(20,layers[i]-0.15); renderCore(); },1200);
+
+// ---------- PERIODIC TABLE ----------
+const pt = document.getElementById('pt');
+elements.forEach(el=>{
+  const d=document.createElement('div');
+  d.className='element relative rounded-[4px] border text-[10px] flex flex-col items-center justify-center';
+  d.style.gridColumn=el.x; d.style.gridRow=el.y;
+  d.style.background=`${catColor[el.c]}18`; d.style.borderColor=`${catColor[el.c]}55`; d.style.color=catColor[el.c];
+  d.innerHTML=`<span class="absolute top-0.5 left-0.5 text-[8px] opacity-70">${el.n}</span><b class="text-[12px] leading-none">${el.s}</b>`;
+  d.onmouseenter=()=>{ document.getElementById('hoverInfo').innerHTML=`<span style="color:${catColor[el.c]}">${el.name} (${el.s}-${el.n})</span> • Mass ${el.m} • Half-life: ${el.hl} • ${el.c}`; };
+  d.onclick=()=>loadKnown(el.n);
+  pt.appendChild(d);
+});
+
+// ---------- THREE.JS FORGE ----------
+const canvas = document.getElementById('forge');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45,1,0.1,100); camera.position.set(0,1.5,8);
+const controls = new OrbitControls(camera, canvas); controls.enableDamping=true; controls.enablePan=false; controls.minDistance=5; controls.maxDistance=12;
+
+const ambient = new THREE.AmbientLight(0x112233,1.2); scene.add(ambient);
+const pLight = new THREE.PointLight(0x00e5ff,2,20); pLight.position.set(3,3,3); scene.add(pLight);
+const pLight2 = new THREE.PointLight(0xff00aa,1.5,20); pLight2.position.set(-3,-2,2); scene.add(pLight2);
+
+const nucleus = new THREE.Group(); scene.add(nucleus);
+const electronGroup = new THREE.Group(); scene.add(electronGroup);
+
+function resize(){ const r=canvas.getBoundingClientRect(); renderer.setSize(r.width,r.height,false); camera.aspect=r.width/r.height; camera.updateProjectionMatrix(); }
+new ResizeObserver(resize).observe(canvas);
+
+// materials
+const pMat = new THREE.MeshStandardMaterial({color:0xff3b3b, emissive:0xff0000, emissiveIntensity:0.8, metalness:0.3, roughness:0.3});
+const nMat = new THREE.MeshStandardMaterial({color:0x9ca3af, emissive:0x222, emissiveIntensity:0.3, metalness:0.1, roughness:0.7});
+const eMat = new THREE.MeshBasicMaterial({color:0x38bdf8});
+
+let protons=1, neutrons=0;
+let pMeshes=[], nMeshes=[], eMeshes=[];
+
+function rebuildNucleus(){
+  pMeshes.forEach(m=>nucleus.remove(m)); nMeshes.forEach(m=>nucleus.remove(m)); pMeshes=[]; nMeshes=[];
+  const total = protons+neutrons; const radius = 0.45 + Math.pow(total,0.33)*0.18;
+  // protons
+  for(let i=0;i<protons;i++){
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.22,16), pMat);
+    const phi = Math.acos(-1 + (2*(i+0.5))/Math.max(1,protons)); const theta = Math.sqrt(protons*Math.PI)*phi;
+    m.position.setFromSphericalCoords(radius*0.9, phi, theta); m.position.x += (Math.random()-0.5)*0.1; m.position.y += (Math.random()-0.5)*0.1; m.position.z += (Math.random()-0.5)*0.1;
+    m.scale.set(0.01,0.01,0.01); nucleus.add(m); pMeshes.push(m);
+    // pop in
+    const target=m.scale.x*1; let s=0.01; const anim=()=>{ s+=0.12; m.scale.setScalar(Math.min(target,s)); if(s<target) requestAnimationFrame(anim); }; anim();
+  }
+  // neutrons
+  for(let i=0;i<neutrons;i++){
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.22,16,16), nMat);
+    const idx = i+protons; const phi = Math.acos(-1 + (2*(idx+0.5))/Math.max(1,total)); const theta = Math.sqrt(total*Math.PI)*phi +1.1;
+    m.position.setFromSphericalCoords(radius*0.9, phi, theta);
+    nucleus.add(m); nMeshes.push(m);
+  }
+  rebuildElectrons();
+}
+function rebuildElectrons(){
+  electronGroup.clear(); eMeshes=[];
+  const shells = [2,8,18,32,32,18,8]; let remaining = protons; let shellIdx=0;
+  while(remaining>0 && shellIdx<shells.length){
+    const take = Math.min(remaining, shells[shellIdx]); remaining -= take;
+    const radius = 1.4 + shellIdx*0.55;
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(radius,0.015,8,64), new THREE.MeshBasicMaterial({color:0x0ea5e9, transparent:true, opacity:0.25})); ring.rotation.x=Math.PI/2; electronGroup.add(ring);
+    for(let i=0;i<take;i++){ const e = new THREE.Mesh(new THREE.SphereGeometry(0.06,8,8), eMat); e.userData={r:radius, a:(i/take)*Math.PI*2, s:0.5+Math.random()*0.3}; electronGroup.add(e); eMeshes.push(e); }
+    shellIdx++;
+  }
+}
+rebuildNucleus();
+
+function animate(){
+  requestAnimationFrame(animate);
+  nucleus.rotation.y += 0.003; nucleus.rotation.x += 0.001;
+  eMeshes.forEach(e=>{ e.userData.a += 0.01*e.userData.s; e.position.set(Math.cos(e.userData.a)*e.userData.r,0,Math.sin(e.userData.a)*e.userData.r); });
+  controls.update(); renderer.render(scene,camera);
+}
+animate();
+
+// ---------- PHYSICS ----------
+function systematicName(Z){
+  const roots=['nil','un','bi','tri','quad','pent','hex','sept','oct','enn'];
+  return Z.toString().split('').map(d=>roots[+d]).join('').replace(/^./,c=>c.toUpperCase())+'ium';
+}
+function predict(Z,N){
+  const magicZ=[2,8,20,28,50,82,114,126], magicN=[2,8,20,28,50,82,126,184,196,258];
+  const idealN = Z<=20? Z : Z<=82? Math.round(Z*1.33+4) : Math.round(Z*1.54);
+  let score = 100 - Math.abs(N-idealN)*3.2;
+  if(magicZ.includes(Z)) score+=22; if(magicN.includes(N)) score+=22;
+  const dZ = Math.abs(Z-114), dN=Math.abs(N-184); if(dZ<=6 && dN<=10) score+= 35 - (dZ+dN)*2;
+  if(Z>=119 && Z<=126 && N>=178 && N<=192) score+=28;
+  if(Z===164 && N>=308 && N<=318) score+=40;
+  score = Math.max(0,Math.min(100,score));
+  let hl='stable', sec=1e12; 
+  if(score>90){hl='>1e9 y'; sec=3e16;}
+  else if(score>78){hl='~1 My'; sec=3e13;}
+  else if(score>64){hl='~1 y'; sec=3e7;}
+  else if(score>50){hl='~1 d'; sec=86400;}
+  else if(score>36){hl='~1 min'; sec=60;}
+  else if(score>22){hl='~1 s'; sec=1;}
+  else if(score>12){hl='~10 ms'; sec=0.01;}
+  else {hl='~100 µs'; sec=0.0001;}
+  const ratio=N/Z; const decay = ratio>1.6?'β⁻': ratio<1.25 && Z>82?'α':'SF';
+  return {score:Math.round(score), hl, sec, decay, idealN};
+}
+
+function updateHUD(){
+  document.getElementById('pCount').textContent=protons;
+  document.getElementById('nCount').textContent=neutrons;
+  const nz = neutrons/protons; document.getElementById('nzRatio').textContent = protons? nz.toFixed(2):'—';
+  const pred = predict(protons, neutrons);
+  document.getElementById('stabVal').textContent = pred.score;
+  document.getElementById('stabArc').style.strokeDashoffset = 264 - (264*pred.score/100);
+  document.getElementById('predictHL').textContent = pred.hl;
+  document.getElementById('decayMode').textContent = pred.decay;
+  const name = protons<=118? elements[protons-1].name : systematicName(protons);
+  const sym = protons<=118? elements[protons-1].s : 'Uue';
+  document.getElementById('currentElement').textContent = `${protons<=118?protons:''}${sym} ${name} • A=${protons+neutrons}`;
+  const need = Math.pow(protons,2.7)/4000; document.getElementById('energyReq').textContent = `Req: ${need.toFixed(2)} TW • Z²·⁷ = ${Math.pow(protons,2.7).toExponential(2)}`;
+  const prox = Math.max(0,100 - (Math.abs(protons-114)+Math.abs(neutrons-184))*4); document.getElementById('islandProx').style.width = prox+'%';
+}
+updateHUD();
+
+// ---------- INTERACTIONS ----------
+function addProton(){ if(protons<256){ protons++; rebuildNucleus(); updateHUD(); pulse(document.getElementById('pCount')); } }
+function addNeutron(){ if(neutrons<256){ neutrons++; rebuildNucleus(); updateHUD(); pulse(document.getElementById('nCount')); } }
+function removeProton(){ if(protons>1){ protons--; rebuildNucleus(); updateHUD(); } }
+function removeNeutron(){ if(neutrons>0){ neutrons--; rebuildNucleus(); updateHUD(); } }
+document.getElementById('pPlus').onclick=addProton; document.getElementById('pMinus').onclick=removeProton;
+document.getElementById('nPlus').onclick=addNeutron; document.getElementById('nMinus').onclick=removeNeutron;
+
+function pulse(el){ el.animate([{transform:'scale(1)'},{transform:'scale(1.3)'},{transform:'scale(1)'}],{duration:200}); }
+
+// Wexler hands drag
+function makeHand(el, fn){ let dragging=false, ox=0, oy=0; const rect0=el.getBoundingClientRect();
+  el.addEventListener('pointerdown',e=>{ dragging=true; ox=e.clientX; oy=e.clientY; el.setPointerCapture(e.pointerId); });
+  window.addEventListener('pointermove',e=>{ if(!dragging) return; el.style.transform=`translate(${e.clientX-ox}px,${- (e.clientY-oy)}px)`; });
+  window.addEventListener('pointerup',e=>{ if(!dragging) return; dragging=false; el.style.transform=''; const forgeRect=document.getElementById('forge').getBoundingClientRect(); if(e.clientX>forgeRect.left && e.clientX<forgeRect.right && e.clientY>forgeRect.top && e.clientY<forgeRect.bottom) fn(); });
+}
+makeHand(document.getElementById('handL'), addProton);
+makeHand(document.getElementById('handR'), addNeutron);
+
+// Load known
+function loadKnown(Z){ const el=elements[Z-1]; protons=Z; neutrons=Math.round(el.m)-Z; if(neutrons<0) neutrons=Math.floor(Z*1.3); rebuildNucleus(); updateHUD(); log(`LOADED: ${el.name} (${el.s})`); }
+
+// ---------- DISCOVERY ----------
+const synthList=[]; 
+function log(msg){ const l=document.getElementById('log'); const t=new Date().toLocaleTimeString(); l.innerHTML = `<div><span class="text-slate-600">${t}</span> ${msg}</div>` + l.innerHTML; }
+
+async function sha256(str){ const buf=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str)); return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join(''); }
+
+document.getElementById('fuseBtn').onclick = async ()=>{
+  const Z=protons, N=neutrons, A=Z+N;
+  const need = Math.pow(Z,2.7)/4000;
+  const energy = layers.reduce((a,b)=>a+b,0)*0.85;
+  const status=document.getElementById('fuseStatus');
+  if(layers[0]<50 || layers[1]<50 || layers[2]<50){ status.textContent='FAIL: L1-3 <50%'; setTimeout(()=>status.textContent='',2000); navigator.vibrate?.(50); return; }
+  if(energy < need){ status.textContent=`INSUFFICIENT: ${energy.toFixed(1)}<${need.toFixed(1)} TW`; setTimeout(()=>status.textContent='',2500); return; }
+  status.textContent='FUSING...'; document.getElementById('fuseBtn').classList.add('animate-pulse');
+  await new Promise(r=>setTimeout(r,900));
+  const pred=predict(Z,N); const prob = Math.max(0.04, (pred.score/100) * Math.min(1, energy/need*0.9) * (1 - Math.abs(N-pred.idealN)/(pred.idealN*0.5)));
+  const success = Math.random() < prob;
+  document.getElementById('fuseBtn').classList.remove('animate-pulse');
+  if(!success){ status.textContent='FUSION FAILED • No capture'; log(`<span class="text-red-400">FAIL</span> Z=${Z} N=${N} • prob ${(prob*100).toFixed(1)}%`); flashForge('#ef4444'); setTimeout(()=>status.textContent='',3000); for(let i=0;i<3;i++) layers[i]-=12; renderCore(); return; }
+  // success
+  const tempName = Z>118? systematicName(Z): elements[Z-1].name;
+  const leaf = await sha256(`${Z}-${N}-${tempName}-${ROOT0}-${Date.now()}`);
+  const now = new Date();
+  const elData = {Z,N,A, name:tempName, sym: Z>118? 'U'+Z : elements[Z-1].s, pred, leaf, ts:now.toISOString()};
+  synthList.unshift(elData);
+  status.textContent=`SUCCESS • ${tempName}-${A}`; flashForge('#22c55e');
+  log(`<span class="text-emerald-400">DISCOVERED</span> Z=${Z} N=${N} • ${tempName}-${A} • t½ ${pred.hl} • hash ${leaf.slice(0,8)}…`);
+  renderSynth(); addToTable(elData);
+  // decay simulation
+  if(pred.score < 75){ const decayMs = Math.max(800, Math.min(22000, pred.sec*800)); setTimeout(()=>{ decayElement(elData); }, decayMs); }
+  setTimeout(()=>status.textContent='',4000);
+  for(let i=0;i<5;i++) layers[i]=Math.max(10, layers[i]-8); renderCore();
+};
+
+function flashForge(color){ const o=document.createElement('div'); o.style.cssText=`position:absolute;inset:0;background:${color};mix-blend-mode:screen;opacity:.3;pointer-events:none;z-index:20`; document.querySelector('section:nth-child(2)').appendChild(o); o.animate([{opacity:.35},{opacity:0}],{duration:600}).onfinish=()=>o.remove(); }
+
+function decayElement(el){ log(`<span class="text-amber-400">DECAY</span> ${el.name}-${el.A} → ${el.pred.decay} • ${el.pred.hl}`); const synthDiv=document.getElementById(`synth-${el.leaf.slice(0,8)}`); if(synthDiv){ synthDiv.classList.add('opacity-40'); synthDiv.querySelector('.status').textContent='DECAYED'; synthDiv.style.animation='decay-flash .6s'; } flashForge('#f59e0b'); }
+
+function addToTable(el){ if(el.Z<=118) return; const d=document.createElement('div'); d.className='element relative rounded-[4px] border text-[10px] flex flex-col items-center justify-center'; d.style.gridColumn= ((el.Z-119)%18)+1; d.style.gridRow=11+Math.floor((el.Z-119)/18); d.style.background='#a855f718'; d.style.borderColor='#a855f755'; d.style.color='#e9d5ff'; d.innerHTML=`<span class="absolute top-0.5 left-0.5 text-[8px] opacity-70">${el.Z}</span><b class="text-[11px] leading-none">U${el.Z}</b>`; d.title=`${el.name} • A=${el.A} • t½ ${el.pred.hl}`; d.onclick=()=>{ protons=el.Z; neutrons=el.N; rebuildNucleus(); updateHUD(); }; pt.appendChild(d); }
+
+// ---------- TABS ----------
+document.querySelectorAll('.tabBtn').forEach(b=>b.onclick=()=>{ document.querySelectorAll('.tabBtn').forEach(x=>{x.classList.remove('border-cyan-500','text-cyan-300'); x.classList.add('border-transparent','text-slate-500')}); b.classList.add('border-cyan-500','text-cyan-300'); b.classList.remove('text-slate-500'); document.getElementById('tab-known').classList.toggle('hidden', b.dataset.tab!=='known'); document.getElementById('tab-synth').classList.toggle('hidden', b.dataset.tab!=='synth'); document.getElementById('tab-pred').classList.toggle('hidden', b.dataset.tab!=='pred'); });
+
+function renderKnown(){
+  const wrap=document.getElementById('tab-known'); wrap.innerHTML='';
+  elements.forEach(el=>{ const row=document.createElement('div'); row.className='flex items-center gap-2 px-2 py-1 rounded hover:bg-slate-800/50 cursor-pointer'; row.innerHTML=`<span class="text-[10px] w-6 text-right mono" style="color:${catColor[el.c]}">${el.n}</span><span class="w-7 font-mono" style="color:${catColor[el.c]}">${el.s}</span><span class="flex-1 text-[12px]">${el.name}</span><span class="text-[10px] text-emerald-400">✓</span>`; row.onclick=()=>loadKnown(el.n); wrap.appendChild(row); });
+}
+renderKnown();
+
+function renderSynth(){
+  const wrap=document.getElementById('tab-synth'); wrap.innerHTML='';
+  if(synthList.length===0){ wrap.innerHTML='<div class="text-[12px] text-slate-500 p-3">No syntheses yet. Crank core L1-3 >50% and press FUSE.</div>'; return; }
+  synthList.forEach(el=>{
+    const id=el.leaf.slice(0,8);
+    const d=document.createElement('div'); d.id=`synth-${id}`; d.className='p-2 rounded-lg bg-black/40 border border-fuchsia-900/30';
+    d.innerHTML=`
+      <div class="flex items-start justify-between">
+        <div>
+          <div class="mono text-[13px] text-fuchsia-300">${el.Z} • ${el.name}-${el.A}</div>
+          <div class="text-[10px] text-slate-400">N=${el.N} • t½ ${el.pred.hl} • ${el.pred.decay} • score ${el.pred.score}</div>
+        </div>
+        <div class="text-right">
+          <div class="text-[9px] text-slate-500 status">STABLE</div>
+          <button class="text-[10px] px-2 py-0.5 mt-1 bg-fuchsia-900/30 hover:bg-fuchsia-800/40 rounded border border-fuchsia-800/50" onclick="window.nameElement('${id}')">Name it</button>
+        </div>
+      <div class="mt-1.5 grid grid-cols-3 gap-2 text-[10px] font-mono">
+        <div class="p-1.5 rounded bg-slate-900/60 border border-slate-800"><div class="text-slate-500">WITNESS</div><div class="text-emerald-400 truncate">${el.leaf.slice(0,12)}…</div></div>
+        <div class="p-1.5 rounded bg-slate-900/60 border border-slate-800"><div class="text-slate-500">MERKLE</div><div class="text-cyan-400 truncate">${ROOT0.slice(0,8)}…</div></div>
+        <div class="p-1.5 rounded bg-slate-900/60 border border-slate-800"><div class="text-slate-500">TIME</div><div class="text-slate-300">${new Date(el.ts).toLocaleTimeString()}</div></div>
+      </div>`;
+    wrap.appendChild(d);
+  });
+}
+renderSynth();
+window.nameElement=(id)=>{ const el=synthList.find(e=>e.leaf.startsWith(id)); const name=prompt(`Name element ${el.Z} (${el.name}):`, el.name); if(name){ el.name=name; renderSynth(); log(`NAMED: Z=${el.Z} → ${name}`); } };
+
+function renderPred(){
+  const wrap=document.getElementById('tab-pred'); const preds=[119,120,121,122,123,124,125,126,164,184,196,228,256];
+  wrap.innerHTML = `<div class="text-[11px] text-slate-400 mb-2">Theoretical island of stability • Z=114 N=184 centered</div>`;
+  preds.forEach(Z=>{
+    const N = Z===164?310: Z>=120?184+Math.round((Z-120)*1.4): Math.round(Z*1.53);
+    const p=predict(Z,N); const nm=systematicName(Z);
+    const d=document.createElement('div'); d.className='p-2 rounded-lg bg-black/30 border border-slate-800 hover:border-cyan-900/50 cursor-pointer'; d.innerHTML=`<div class="flex justify-between"><span class="mono text-cyan-300">${Z} • ${nm}</span><span class="text-[10px] text-slate-500">N≈${N}</span></div><div class="text-[11px] text-slate-400">Predicted t½: <b class="text-slate-200">${p.hl}</b> • score ${p.score} • ${p.decay}</div>`; d.onclick=()=>{protons=Z; neutrons=N; rebuildNucleus(); updateHUD();}; wrap.appendChild(d);
+  });
+}
+renderPred();
+
+// init log
+log('SYSTEM ONLINE • FUSION ROOT0 anchored');
+log('CORE: Charge Layers 1-3 above 50% to enable fusion');
+log('WEXLER HANDS: Left=proton, Right=neutron • Drag into chamber');
+
+</script>
+</body>
+</html>

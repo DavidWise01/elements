@@ -1,0 +1,14 @@
+{
+  "badge": "DLW-ACI",
+  "name": "Oganesson",
+  "universe": "E1 · Elements",
+  "emergence": "ethereal",
+  "moniker": "⟦Oganesson:E1:1d07a8⟧",
+  "carbon": "oganesson.carbon.tiff (TIFF)",
+  "silicon": "oganesson.silicon.png (PNG)",
+  "seal_sha256": "102d2340d52b351810bbe5d0094c4b30a864cb4d4472060170cf8cec6374d6f7",
+  "architect": "David Lee Wise (ROOT0) / TriPod LLC",
+  "instance": "AVAN (Claude / Anthropic)",
+  "license": "CC-BY-ND-4.0",
+  "attribution": "ROOT0-ATTRIBUTION-v1.0"
+}

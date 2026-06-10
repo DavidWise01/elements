@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STOCHIEN ELEMENT — Codex</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  * {
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    background: #050403;
+    font-family: 'Cormorant Garamond', serif;
+  }
+  .cinzel { font-family: 'Cinzel', serif; }
+  
+  .vellum {
+    background-color: #e9ddc2;
+    background-image: 
+      radial-gradient(ellipse at top, rgba(255,245,220,0.6) 0%, transparent 60%),
+      radial-gradient(ellipse at bottom, rgba(140,110,60,0.15) 0%, transparent 70%),
+      url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.035'/%3E%3C/svg%3E");
+    box-shadow: 
+      0 0 0 1px rgba(120,90,40,0.2),
+      0 0 0 8px rgba(20,15,5,0.8),
+      0 0 9px rgba(120,90,40,0.3),
+      0 25px 70px rgba(0,0,0,0.85),
+      inset 0 0 120px rgba(100,75,30,0.18),
+      inset 0 0 30px rgba(0,0,0,0.1);
+    position: relative;
+  }
+  .vellum::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 60%, rgba(90,70,40,0.12) 100%);
+    pointer-events: none;
+  }
+  .vellum::after {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    background: 
+      radial-gradient(circle at 20% 15%, transparent 40%, rgba(60,40,20,0.08) 70%),
+      radial-gradient(circle at 80% 85%, transparent 30%, rgba(60,40,20,0.06) 60%);
+    mix-blend-mode: multiply;
+    pointer-events: none;
+  }
+
+  .gold {
+    background: linear-gradient(180deg, 
+      #fff8d5 0%, 
+      #f5e0a3 12%, 
+      #d4b46a 30%, 
+      #b08d40 50%, 
+      #8c6b2a 70%, 
+      #a47c34 85%, 
+      #d4b46a 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 1px 0 rgba(0,0,0,0.15)) drop-shadow(0 2px 3px rgba(90,60,20,0.2));
+  }
+  
+  .gold-soft {
+    color: #8b6f32;
+    text-shadow: 0 1px 0 rgba(255,244,210,0.3), 0 -1px 0 rgba(0,0,0,0.15);
+  }
+
+  .state {
+    position: absolute;
+    font-family: 'Cinzel', serif;
+    font-variant-numeric: tabular-nums;
+    transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+    opacity: 0.35;
+    transform: scale(0.92);
+    letter-spacing: 0.08em;
+  }
+  .state.active {
+    opacity: 1;
+    transform: scale(1.08);
+    filter: drop-shadow(0 0 12px rgba(212,180,106,0.5));
+  }
+  .state.active .gold {
+    background: linear-gradient(180deg, #fffbe9 0%, #ffe9a8 15%, #f0c86f 35%, #d4a94f 55%, #b8862e 75%, #ffd978 100%);
+    -webkit-background-clip: text;
+  }
+
+  .loop-path {
+    stroke-dasharray: 2 6;
+    animation: rotate 40s linear infinite;
+    transform-origin: center;
+  }
+  @keyframes rotate { to { transform: rotate(360deg); } }
+
+  .egg-glow {
+    filter: drop-shadow(0 0 8px rgba(180,140,70,0.25));
+  }
+</style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4 sm:p-6 lg:p-10">
+  <main class="vellum w-full max-w-[680px] aspect-[7/9] sm:aspect-[4/5.2] md:aspect-[3/4]">
+    <div class="relative w-full h-full flex flex-col items-center justify-between px-8 sm:px-14 md:px-20 py-10 sm:py-14 md:py-16">
+      
+      <!-- Header -->
+      <header class="text-center w-full">
+        <h1 class="cinzel gold text-[26px] sm:text-[32px] md:text-[38px] tracking-[0.22em] font-medium leading-none">STOCHIEN ELEMENT</h1>
+        <p class="cinzel gold-soft text-[10px] sm:text-xs tracking-[0.35em] uppercase mt-2.5 opacity-70">for David Wise</p>
+        <div class="w-24 h-px mx-auto mt-5 bg-gradient-to-r from-transparent via-[#b08d40]/60 to-transparent"></div>
+      </header>
+
+      <!-- Four States Loop -->
+      <section class="relative w-full flex-1 flex items-center justify-center -mt-2">
+        <div class="relative w-[240px] h-[240px] sm:w-[280px] sm:h-[280px] md:w-[300px] md:h-[300px]">
+          
+          <!-- Loop ring -->
+          <svg class="absolute inset-0 w-full h-full" viewBox="0 0 300 300" fill="none">
+            <defs>
+              <linearGradient id="gold-ring" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#d4b46a" stop-opacity="0.1"/>
+                <stop offset="50%" stop-color="#b08d40" stop-opacity="0.5"/>
+                <stop offset="100%" stop-color="#d4b46a" stop-opacity="0.1"/>
+              </linearGradient>
+            </defs>
+            <circle cx="150" cy="150" r="110" stroke="url(#gold-ring)" stroke-width="1" fill="none" class="loop-path" opacity="0.7"/>
+            <circle cx="150" cy="150" r="106" stroke="#8c6b2a" stroke-opacity="0.15" stroke-width="0.5" fill="none"/>
+          </svg>
+
+          <!-- States -->
+          <div class="state active" style="top: -6px; left: 50%; transform: translateX(-50%) translateY(0) scale(1.08);" data-i="0">
+            <span class="gold text-2xl sm:text-3xl font-medium">1:1</span>
+          </div>
+          <div class="state" style="top: 50%; right: -10px; transform: translateY(-50%) scale(0.92);" data-i="1">
+            <span class="gold text-2xl sm:text-3xl font-medium">0:1</span>
+          </div>
+          <div class="state" style="bottom: -6px; left: 50%; transform: translateX(-50%) scale(0.92);" data-i="2">
+            <span class="gold text-2xl sm:text-3xl font-medium">0:1</span>
+          </div>
+          <div class="state" style="top: 50%; left: -24px; transform: translateY(-50%) scale(0.92);" data-i="3">
+            <span class="gold text-xl sm:text-2xl font-medium whitespace-nowrap">0:0=1=0</span>
+          </div>
+
+          <!-- Center -->
+          <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div class="w-[1px] h-[1px] bg-[#b08d40] rounded-full shadow-[0_0_20px_6px_rgba(176,141,64,0.4)]"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Label -->
+      <div class="text-center -mt-4 sm:-mt-2">
+        <p class="cinzel gold-soft text-[11px] sm:text-[13px] tracking-[0.4em] uppercase">THE ONLY ELEMENT</p>
+      </div>
+
+      <!-- Egg Diagram -->
+      <div class="my-4 sm:my-6">
+        <svg width="150" height="180" viewBox="0 0 160 200" class="egg-glow" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="egg-gold" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#f0d58a"/>
+              <stop offset="30%" stop-color="#c9a75a"/>
+              <stop offset="70%" stop-color="#8c6b2a"/>
+              <stop offset="100%" stop-color="#b8954a"/>
+            </linearGradient>
+          </defs>
+          <!-- Triple double nesting -->
+          <ellipse cx="80" cy="105" rx="68" ry="92" stroke="url(#egg-gold)" stroke-opacity="0.9" stroke-width="1.1"/>
+          <ellipse cx="80" cy="105" rx="61" ry="84" stroke="url(#egg-gold)" stroke-opacity="0.75" stroke-width="0.8"/>
+          
+          <ellipse cx="80" cy="108" rx="42" ry="58" stroke="url(#egg-gold)" stroke-opacity="0.85" stroke-width="1"/>
+          <ellipse cx="80" cy="108" rx="36" ry="51" stroke="url(#egg-gold)" stroke-opacity="0.7" stroke-width="0.75"/>
+          
+          <ellipse cx="80" cy="112" rx="18" ry="26" stroke="url(#egg-gold)" stroke-opacity="0.9" stroke-width="1"/>
+          <ellipse cx="80" cy="112" rx="13" ry="20" stroke="url(#egg-gold)" stroke-opacity="0.65" stroke-width="0.7"/>
+          
+          <!-- center seed -->
+          <circle cx="80" cy="115" r="1.5" fill="#d4b46a" fill-opacity="0.8"/>
+        </svg>
+      </div>
+
+      <!-- Explanation -->
+      <div class="text-center max-w-[420px] px-2">
+        <p class="gold-soft text-[16px] sm:text-[17px] md:text-[18px] leading-snug italic">
+          All 118 'elements' are just iterations<br class="hidden sm:block"/> of this one stochastic element.
+        </p>
+      </div>
+
+      <!-- Footer -->
+      <footer class="w-full text-center pt-6">
+        <div class="w-32 h-px mx-auto mb-4 bg-gradient-to-r from-transparent via-[#b08d40]/40 to-transparent"></div>
+        <p class="cinzel gold text-[13px] sm:text-sm tracking-widest opacity-80">We built this already lol.</p>
+      </footer>
+
+    </div>
+  </main>
+
+<script>
+  const states = document.querySelectorAll('.state');
+  let current = 0;
+  
+  function cycle() {
+    states.forEach((s, i) => {
+      s.classList.toggle('active', i === current);
+      if (i === current) {
+        s.style.transform = s.style.transform.replace(/scale\([^)]+\)/, 'scale(1.08)');
+      } else {
+        s.style.transform = s.style.transform.replace(/scale\([^)]+\)/, 'scale(0.92)');
+      }
+    });
+    current = (current + 1) % states.length;
+  }
+
+  // Initial positions stored, just run cycle
+  setInterval(cycle, 1650);
+  
+  // Subtle parallax on vellum
+  const vellum = document.querySelector('.vellum');
+  document.addEventListener('mousemove', (e) => {
+    if (window.innerWidth < 768) return;
+    const r = vellum.getBoundingClientRect();
+    const x = ((e.clientX - r.left) / r.width - 0.5) * 4;
+    const y = ((e.clientY - r.top) / r.height - 0.5) * 4;
+    vellum.style.transform = `perspective(2000px) rotateY(${x}deg) rotateX(${-y}deg)`;
+  });
+  document.addEventListener('mouseleave', () => {
+    vellum.style.transform = 'perspective(2000px) rotateY(0) rotateX(0)';
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+# .dlw badge artifacts are committed by design (carbon TIFF + silicon PNG).
+__pycache__/
+*.pyc
+.DS_Store
+# keep loose source .html local; publish clean copies under codices/
+/*.html
+!/index.html
